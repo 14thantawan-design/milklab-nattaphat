@@ -1,0 +1,47 @@
+2026-07-15 10:20 | user_input | บันทึกขายลาเต้น้ำผึ้ง 3 แก้ว แก้วละ 50
+2026-07-15 10:20 | tool_error | RuntimeError ไม่พบ GEMINI_API_KEY ในระบบ
+2026-07-15 10:21 | user_input | ดูยอดขายของวันนี้ให้หน่อย
+2026-07-15 10:21 | tool_error | RuntimeError ไม่พบ GEMINI_API_KEY ในระบบ
+2026-07-15 10:21 | user_input | บันทึกขายลาเต้น้ำผึ้ง -5 แก้ว แก้วละ 50
+2026-07-15 10:21 | tool_error | RuntimeError ไม่พบ GEMINI_API_KEY ในระบบ
+2026-07-15 10:29 | user_input | บันทึกขายลาเต้น้ำผึ้ง 3 แก้ว แก้วละ 50
+2026-07-15 10:29 | tool_error | RuntimeError Parse error: 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': "Function calling with a response mime type: 'application/json' is unsupported", 'status': 'INVALID_ARGUMENT'}}
+2026-07-15 10:30 | user_input | ดูยอดขายของวันนี้ให้หน่อย
+2026-07-15 10:30 | tool_error | RuntimeError Parse error: 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': "Function calling with a response mime type: 'application/json' is unsupported", 'status': 'INVALID_ARGUMENT'}}
+2026-07-15 10:30 | user_input | บันทึกขายลาเต้น้ำผึ้ง -5 แก้ว แก้วละ 50
+2026-07-15 10:30 | tool_error | RuntimeError Parse error: 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': "Function calling with a response mime type: 'application/json' is unsupported", 'status': 'INVALID_ARGUMENT'}}
+2026-07-15 10:30 | user_input | บันทึกขายลาเต้น้ำผึ้ง 3 แก้ว แก้วละ 50
+2026-07-15 10:30 | tool_error | RuntimeError Parse error: 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': "Function calling with a response mime type: 'application/json' is unsupported", 'status': 'INVALID_ARGUMENT'}}
+2026-07-15 10:30 | user_input | ดูยอดขายของวันนี้ให้หน่อย
+2026-07-15 10:30 | tool_error | RuntimeError Parse error: 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': "Function calling with a response mime type: 'application/json' is unsupported", 'status': 'INVALID_ARGUMENT'}}
+2026-07-15 10:31 | user_input | บันทึกขายลาเต้น้ำผึ้ง -5 แก้ว แก้วละ 50
+2026-07-15 10:31 | tool_error | RuntimeError Parse error: 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': "Function calling with a response mime type: 'application/json' is unsupported", 'status': 'INVALID_ARGUMENT'}}
+2026-07-15 10:33 | user_input | บันทึกขายลาเต้น้ำผึ้ง 3 แก้ว แก้วละ 50
+2026-07-15 10:33 | llm_response | {"tool": "log_sale", "args": {"menu": "ลาเต้น้ำผึ้ง", "qty": 3, "price": 50}}
+2026-07-15 10:33 | tool_result | row appended
+2026-07-15 10:33 | user_input | ดูยอดขายของวันนี้ให้หน่อย
+2026-07-15 10:33 | llm_response | {"tool": "query_sales", "args": {"date": "2023-10-27"}}
+2026-07-15 10:33 | tool_result | รายการขาย 5 บรรทัด
+2026-07-15 10:33 | user_input | บันทึกขายลาเต้น้ำผึ้ง -5 แก้ว แก้วละ 50
+2026-07-15 10:34 | llm_response | {"tool": "log_sale", "args": {"menu": "ลาเต้น้ำผึ้ง", "qty": -5, "price": 50}}
+2026-07-15 10:34 | tool_error | ValueError quantity must be positive
+2026-07-15 10:41 | user_input | บันทึกขายลาเต้น้ำผึ้ง 3 แก้ว แก้วละ 50
+2026-07-15 10:41 | tool_error | RuntimeError Parse error: 404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/gemini-3-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}
+2026-07-15 10:42 | user_input | บันทึกขายลาเต้น้ำผึ้ง 3 แก้ว แก้วละ 50
+2026-07-15 10:42 | llm_response | {"tool": "log_sale", "args": {"menu": "ลาเต้น้ำผึ้ง", "qty": 3, "price": 50}}
+2026-07-15 10:42 | tool_result | row appended
+2026-07-15 10:45 | user_input | บันทึกขายลาเต้น้ำผึ้ง 3 แก้ว แก้วละ 50
+2026-07-15 10:45 | llm_response | {"tool": "log_sale", "args": {"menu": "ลาเต้น้ำผึ้ง", "qty": 3, "price": 50}}
+2026-07-15 10:45 | tool_result | row appended
+2026-07-15 17:48 | user_input | บันทึกขายลาเต้น้ำผึ้ง 3 แก้ว แก้วละ 50
+2026-07-15 17:48 | llm_response | {"tool": "log_sale", "args": {"menu": "ลาเต้น้ำผึ้ง", "qty": 3, "price": 50}}
+2026-07-15 17:48 | tool_result | row appended
+2026-07-15 17:50 | user_input | บันทึกขายลาเต้น้ำผึ้ง 3 แก้ว แก้วละ 50
+2026-07-15 17:50 | llm_response | {"tool": "log_sale", "args": {"menu": "ลาเต้น้ำผึ้ง", "qty": 3, "price": 50}}
+2026-07-15 17:50 | tool_result | row appended
+2026-07-15 17:50 | user_input | ดูยอดขายของวันนี้ให้หน่อย
+2026-07-15 17:50 | llm_response | {"tool": "query_sales", "args": {"date": "2023-10-27"}}
+2026-07-15 17:50 | tool_result | รายการขาย 5 บรรทัด
+2026-07-15 17:50 | user_input | บันทึกขายลาเต้น้ำผึ้ง -5 แก้ว แก้วละ 50
+2026-07-15 17:50 | llm_response | {"tool": "log_sale", "args": {"menu": "ลาเต้น้ำผึ้ง", "qty": -5, "price": 50}}
+2026-07-15 17:50 | tool_error | ValueError quantity must be positive
