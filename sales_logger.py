@@ -10,7 +10,7 @@ import os
 import sys
 import argparse
 import json
-from datetime import datetime
+from datetime import datetime, timezone, timedelta  # แก้ไข: เพิ่ม timezone และ timedelta
 import requests
 from dotenv import load_dotenv
 from google.oauth2 import service_account
@@ -42,8 +42,10 @@ def log_sale_to_sheets(menu: str, qty: int, price: float, total: float) -> str:
         )
         service = build("sheets", "v4", credentials=creds)
 
-        # เตรียมข้อมูลที่จะบันทึก
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # แก้ไข: ตั้งค่าเวลาให้เป็นเวลาประเทศไทย (+7 ชั่วโมง)
+        tz_th = timezone(timedelta(hours=7))
+        timestamp = datetime.now(tz_th).strftime("%Y-%m-%d %H:%M:%S")
+        
         values = [[timestamp, menu, qty, price, total]]
         body = {"values": values}
 

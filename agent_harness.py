@@ -13,6 +13,7 @@ from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+import sales_logger  # <--- นำเข้าไฟล์เชื่อมต่อ Sheet และ Telegram
 
 TOOL_SCHEMA = [
     {
@@ -66,7 +67,7 @@ def log_trace(event_type: str, detail: str):
 
 
 def parse_command(cmd: str, api_key: str | None = None) -> dict:
-    """TODO 1: ส่ง cmd ไป Gemini พร้อม TOOL_SCHEMA ขอให้ตอบเป็น JSON {tool, args}"""
+    """ส่ง cmd ไป Gemini พร้อม TOOL_SCHEMA ขอให้ตอบเป็น JSON {tool, args}"""
     if not api_key:
         api_key = os.environ.get(
             "GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
@@ -90,7 +91,7 @@ def parse_command(cmd: str, api_key: str | None = None) -> dict:
             model='gemini-2.5-flash',
             contents=prompt,
             config=types.GenerateContentConfig(
-                response_mime_type="application/json",  # แก้ไข: ใช้ JSON mode อย่างเดียว
+                response_mime_type="application/json",
             ),
         )
 
@@ -107,7 +108,7 @@ def parse_command(cmd: str, api_key: str | None = None) -> dict:
 
 
 def dispatch_tool(tool_call: dict) -> str:
-    """TODO 2: ตรวจสอบความถูกต้อง (Validate) ก่อนเรียกใช้งานจริง"""
+    """ตรวจสอบความถูกต้อง (Validate) ก่อนเรียกใช้งานจริง (พร้อมเรียกใช้ของจริง)"""
     tool_name = tool_call.get("tool")
     args = tool_call.get("args", {})
 
@@ -124,7 +125,17 @@ def dispatch_tool(tool_call: dict) -> str:
         if price < 0:
             raise ValueError("price cannot be negative")
 
-        return "row appended"
+        # --- แก้ไขให้ยิงเข้า Google Sheets และ Telegram ของจริง ---
+        total_amount = qty * price
+        
+        # 1. บันทึกลง Google Sheets ของจริง
+        ts = sales_logger.log_sale_to_sheets(menu, qty, price, total_amount)
+        
+        # 2. ส่งแจ้งเตือนเข้า Telegram ของจริง
+        sales_logger.send_telegram_alert(menu, qty, total_amount, ts)
+        
+        return f"row appended at {ts} (Total: {total_amount})"
+        # -------------------------------------------------------------
 
     elif tool_name == "query_sales":
         date = args.get("date")
@@ -148,7 +159,6 @@ def main() -> int:
     parser.add_argument("--cmd", required=True, help="คำสั่งภาษาไทย")
     args = parser.parse_args()
 
-    # TODO 3: รันการทำงานและบันทึก log ครบทั้ง 4 แบบ
     log_trace("user_input", args.cmd)
 
     try:

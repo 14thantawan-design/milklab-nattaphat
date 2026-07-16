@@ -45,3 +45,9 @@
 2026-07-15 17:50 | user_input | บันทึกขายลาเต้น้ำผึ้ง -5 แก้ว แก้วละ 50
 2026-07-15 17:50 | llm_response | {"tool": "log_sale", "args": {"menu": "ลาเต้น้ำผึ้ง", "qty": -5, "price": 50}}
 2026-07-15 17:50 | tool_error | ValueError quantity must be positive
+2026-07-16 10:10 | user_input | บันทึกขายชาเขียว 2 แก้ว แก้วละ 45
+2026-07-16 10:10 | llm_response | {"tool": "log_sale", "args": {"menu": "ชาเขียว", "qty": 2, "price": 45}}
+2026-07-16 10:10 | tool_result | row appended at 2026-07-16 03:10:34 (Total: 90)
+2026-07-16 10:13 | user_input | บันทึกขายชาเขียว 2 แก้ว แก้วละ 45
+2026-07-16 10:14 | llm_response | {"tool": "log_sale", "args": {"menu": "ชาเขียว", "qty": 2, "price": 45}}
+2026-07-16 10:14 | tool_result | row appended at 2026-07-16 10:14:00 (Total: 90)
