@@ -31,11 +31,14 @@ Template repo สำหรับวิชา 31-407-106-406 : AI for Solopreneur
 
 
 ---
-title: MilkLab Demi Chatbot
-emoji: 🥛
+title: Milklab Demi
+emoji: 🚀
 colorFrom: blue
 colorTo: green
 sdk: streamlit
 app_file: app.py
 pinned: false
 ---
+
+# MilkLab RAG Chatbot
+แชทบอทตอบคำถามร้าน MilkLab
