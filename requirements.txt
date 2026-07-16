@@ -18,3 +18,9 @@ pytest>=8.0.0
 google-api-python-client
 google-auth
 requests
+
+
+streamlit
+google-generativeai
+python-dotenv
+gspread
