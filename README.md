@@ -1,3 +1,13 @@
+---
+title: Milklab Demi
+emoji: 🚀
+colorFrom: blue
+colorTo: green
+sdk: streamlit
+app_file: app.py
+pinned: false
+---
+
 # MilkLab° Solopreneur Starter (Course 69-1)
 
 Template repo สำหรับวิชา 31-407-106-406 : AI for Solopreneurs
@@ -28,17 +38,6 @@ Template repo สำหรับวิชา 31-407-106-406 : AI for Solopreneur
 ## ดูคอร์ส
 
 [course-691-stsw](https://github.com/<owner>/course-691-stsw) (link จะ update ตอนสร้าง public repo)
-
-
----
-title: Milklab Demi
-emoji: 🚀
-colorFrom: blue
-colorTo: green
-sdk: streamlit
-app_file: app.py
-pinned: false
----
 
 # MilkLab RAG Chatbot
 แชทบอทตอบคำถามร้าน MilkLab
