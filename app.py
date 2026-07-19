@@ -83,7 +83,7 @@ def generate_answer(query: str, context_chunks: list[str]) -> str:
 
     try:
         # ใช้โมเดล gemini-2.5-flash ในการประมวลผลคำตอบ
-        llm_model = genai.GenerativeModel('gemini-2.5-flash')
+        llm_model = genai.GenerativeModel('gemini-3.5-flash')
         response = llm_model.generate_content(prompt)
         return response.text
     except Exception as e:
