@@ -1,7 +1,7 @@
 # WashLab - S4 Pivot
 
 # Gemini
-google-genai>=0.4.0
+google-genai>=2.0.0
 google-generativeai
 python-dotenv>=1.0.0
 
