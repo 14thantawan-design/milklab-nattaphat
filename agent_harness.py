@@ -1,7 +1,8 @@
-"""MilkLab Agent Harness (S2).
+"""WashLab Agent Harness (S4 Pivot).
 
 Usage:
-    python agent_harness.py --cmd "บันทึกขายนมหมี 2 ขวด ขวดละ 65"
+    python agent_harness.py --cmd "บันทึกซักผ้าเครื่อง 10 kg 2 รอบ รอบละ 40 บาท"
+    python agent_harness.py --cmd "ซักผ้าเครื่อง 20 kg ราคาเท่าไร"
 """
 
 import argparse
@@ -13,89 +14,164 @@ from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-import sales_logger  # <--- นำเข้าไฟล์เชื่อมต่อ Sheet และ Telegram
+
+import sales_logger
+
+
+# ข้อมูลบริการขนาดเล็กสำหรับ Agent
+# ตั้งใจเก็บเฉพาะข้อมูลที่จำเป็นเพื่อลดความสับสนของโมเดล
+SERVICE_DB = {
+    "ซักผ้า": {
+        "10 kg": {
+            "price": 40,
+            "duration": "ประมาณ 30 นาที"
+        },
+        "15 kg": {
+            "price": 50,
+            "duration": "ประมาณ 35 นาที"
+        },
+        "20 kg": {
+            "price": 60,
+            "duration": "ประมาณ 40 นาที"
+        },
+    },
+    "อบผ้า": {
+        "10 kg": {
+            "price": 40,
+            "duration": "ประมาณ 30 นาที"
+        },
+        "15 kg": {
+            "price": 50,
+            "duration": "ประมาณ 35 นาที"
+        },
+    },
+}
+
 
 TOOL_SCHEMA = [
     {
-        "name": "log_sale",
-        "description": "บันทึกการขายลง Google Sheets และส่ง notification",
+        "name": "log_service",
+        "description": (
+            "บันทึกการใช้บริการซักหรืออบผ้าของ WashLab "
+            "ลง Google Sheets และส่ง notification"
+        ),
         "parameters": {
             "type": "object",
             "properties": {
-                "menu": {"type": "string", "description": "ชื่อเมนู"},
-                "qty": {"type": "integer", "description": "จำนวนที่ขาย"},
-                "price": {"type": "number", "description": "ราคาต่อหน่วย"},
+                "service": {
+                    "type": "string",
+                    "description": "ประเภทบริการ เช่น ซักผ้า หรือ อบผ้า"
+                },
+                "machine": {
+                    "type": "string",
+                    "description": "ขนาดเครื่อง เช่น 10 kg, 15 kg หรือ 20 kg"
+                },
+                "cycles": {
+                    "type": "integer",
+                    "description": "จำนวนรอบที่ใช้บริการ"
+                },
+                "price": {
+                    "type": "number",
+                    "description": "ราคาต่อรอบ"
+                },
             },
-            "required": ["menu", "qty", "price"],
+            "required": [
+                "service",
+                "machine",
+                "cycles",
+                "price"
+            ],
         },
     },
     {
-        "name": "query_sales",
-        "description": "ดูยอดขายของวันที่ระบุ",
+        "name": "query_service",
+        "description": (
+            "ค้นหาข้อมูลบริการของ WashLab เช่น "
+            "ราคา ระยะเวลา และขนาดเครื่อง"
+        ),
         "parameters": {
             "type": "object",
             "properties": {
-                "date": {"type": "string", "description": "วันที่ format YYYY-MM-DD"},
+                "service": {
+                    "type": "string",
+                    "description": "ประเภทบริการ เช่น ซักผ้า หรือ อบผ้า"
+                },
+                "machine": {
+                    "type": "string",
+                    "description": "ขนาดเครื่อง เช่น 10 kg, 15 kg หรือ 20 kg"
+                },
             },
-            "required": ["date"],
-        },
-    },
-    {
-        "name": "send_alert",
-        "description": "ส่ง message แจ้งเตือนผ่าน Bot",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "message": {"type": "string"},
-            },
-            "required": ["message"],
+            "required": [
+                "service",
+                "machine"
+            ],
         },
     },
 ]
 
 
 def log_trace(event_type: str, detail: str):
-    """ฟังก์ชันช่วยบันทึก Log ลงไฟล์ agent_trace.log ตามฟอร์แมตของอาจารย์"""
-    # ตั้งเวลาบวก 7 ชั่วโมงให้เป็นเวลาประเทศไทย
+    """บันทึก Agent trace ลงไฟล์ agent_trace.log"""
+
     tz_th = timezone(timedelta(hours=7))
     timestamp = datetime.now(tz_th).strftime("%Y-%m-%d %H:%M")
+
     log_line = f"{timestamp} | {event_type} | {detail}\n"
-    
+
     with open("agent_trace.log", "a", encoding="utf-8") as f:
         f.write(log_line)
+
     print(log_line.strip())
 
 
 def parse_command(cmd: str, api_key: str | None = None) -> dict:
-    """ส่ง cmd ไป Gemini พร้อม TOOL_SCHEMA ขอให้ตอบเป็น JSON {tool, args}"""
+    """ส่งคำสั่งภาษาไทยให้ Gemini เลือก Tool และสร้าง arguments."""
+
     if not api_key:
-        api_key = os.environ.get(
-            "GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        api_key = (
+            os.environ.get("GEMINI_API_KEY")
+            or os.environ.get("GOOGLE_API_KEY")
+        )
+
         if not api_key:
-            raise RuntimeError("ไม่พบ GEMINI_API_KEY ในระบบ")
+            raise RuntimeError(
+                "ไม่พบ GEMINI_API_KEY หรือ GOOGLE_API_KEY ในระบบ"
+            )
 
     client = genai.Client(api_key=api_key)
 
     prompt = f"""
-    วิเคราะห์คำสั่งนี้: "{cmd}"
-    
-    นี่คือเครื่องมือที่คุณสามารถใช้ได้:
-    {json.dumps(TOOL_SCHEMA, ensure_ascii=False)}
-    
-    กรุณาเลือกเครื่องมือที่เหมาะสมและตอบกลับเป็น JSON ล้วนๆ โดยไม่ต้องมีเครื่องหมาย ```json
-    รูปแบบ: {{"tool": "ชื่อเครื่องมือ", "args": {{"พารามิเตอร์": "ค่า"}}}}
-    """
+คุณคือ Agent ของ WashLab ร้านซักอบผ้าแบบ Self-Service
+
+วิเคราะห์คำสั่งของผู้ใช้:
+"{cmd}"
+
+เครื่องมือที่สามารถใช้ได้:
+{json.dumps(TOOL_SCHEMA, ensure_ascii=False)}
+
+กฎสำคัญ:
+- เลือกเฉพาะ tool ที่มีอยู่ใน TOOL_SCHEMA
+- ห้ามสร้างชื่อ tool ใหม่
+- ห้ามแต่งราคาเองถ้าผู้ใช้ไม่ได้ระบุราคาในการบันทึก
+- machine ต้องอยู่ในรูปแบบ เช่น "10 kg", "15 kg", "20 kg"
+- service ใช้คำว่า "ซักผ้า" หรือ "อบผ้า"
+- ตอบเป็น JSON เท่านั้น
+
+รูปแบบ:
+{{"tool": "ชื่อเครื่องมือ", "args": {{"พารามิเตอร์": "ค่า"}}}}
+"""
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
             ),
         )
 
-        result_text = response.text.strip()
+        result_text = (response.text or "").strip()
+
         if result_text.startswith("```json"):
             result_text = result_text[7:-3].strip()
         elif result_text.startswith("```"):
@@ -108,68 +184,147 @@ def parse_command(cmd: str, api_key: str | None = None) -> dict:
 
 
 def dispatch_tool(tool_call: dict) -> str:
-    """ตรวจสอบความถูกต้อง (Validate) ก่อนเรียกใช้งานจริง (พร้อมเรียกใช้ของจริง)"""
+    """ตรวจสอบข้อมูลก่อนเรียกใช้งาน Tool จริง."""
+
     tool_name = tool_call.get("tool")
     args = tool_call.get("args", {})
 
-    if tool_name == "log_sale":
-        menu = args.get("menu", "").strip()
-        qty = args.get("qty", 0)
+    if tool_name == "log_service":
+        service_name = str(args.get("service", "")).strip()
+        machine_size = str(args.get("machine", "")).strip()
+        cycles = args.get("cycles", 0)
         price = args.get("price", 0)
 
-        # Guardrail (ป้องกันข้อมูลมั่ว)
-        if not menu:
-            raise ValueError("menu must not be empty")
-        if qty <= 0:
-            raise ValueError("quantity must be positive")
-        if price < 0:
-            raise ValueError("price cannot be negative")
+        # Guardrails
+        if service_name not in SERVICE_DB:
+            raise ValueError(
+                "service ต้องเป็น ซักผ้า หรือ อบผ้า"
+            )
 
-        # --- แก้ไขให้ยิงเข้า Google Sheets และ Telegram ของจริง ---
-        total_amount = qty * price
-        
-        # 1. บันทึกลง Google Sheets ของจริง
-        ts = sales_logger.log_sale_to_sheets(menu, qty, price, total_amount)
-        
-        # 2. ส่งแจ้งเตือนเข้า Telegram ของจริง
-        sales_logger.send_telegram_alert(menu, qty, total_amount, ts)
-        
-        return f"row appended at {ts} (Total: {total_amount})"
-        # -------------------------------------------------------------
+        if machine_size not in SERVICE_DB[service_name]:
+            raise ValueError(
+                f"ไม่พบเครื่องขนาด {machine_size} "
+                f"สำหรับบริการ {service_name}"
+            )
 
-    elif tool_name == "query_sales":
-        date = args.get("date")
-        if not date:
-            raise ValueError("date is required")
-        return "รายการขาย 5 บรรทัด"
+        if not isinstance(cycles, int) or cycles <= 0:
+            raise ValueError(
+                "cycles must be a positive integer"
+            )
 
-    elif tool_name == "send_alert":
-        msg = args.get("message")
-        if not msg:
-            raise ValueError("message is required")
-        return "alert sent"
+        if not isinstance(price, (int, float)) or price < 0:
+            raise ValueError(
+                "price cannot be negative"
+            )
+
+        expected_price = SERVICE_DB[service_name][machine_size]["price"]
+
+        if float(price) != float(expected_price):
+            raise ValueError(
+                f"ราคาของ {service_name} เครื่อง {machine_size} "
+                f"ควรเป็น {expected_price} บาทต่อรอบ"
+            )
+
+        total_amount = cycles * price
+
+        # บันทึก Google Sheets
+        timestamp = sales_logger.log_service_to_sheets(
+            service_name,
+            machine_size,
+            cycles,
+            price,
+            total_amount
+        )
+
+        # แจ้งเตือน Telegram
+        sales_logger.send_telegram_alert(
+            service_name,
+            machine_size,
+            cycles,
+            total_amount,
+            timestamp
+        )
+
+        return (
+            f"บันทึก {service_name} เครื่อง {machine_size} "
+            f"{cycles} รอบ สำเร็จเมื่อ {timestamp} "
+            f"(Total: {total_amount} บาท)"
+        )
+
+    elif tool_name == "query_service":
+        service_name = str(args.get("service", "")).strip()
+        machine_size = str(args.get("machine", "")).strip()
+
+        if service_name not in SERVICE_DB:
+            raise ValueError(
+                "service ต้องเป็น ซักผ้า หรือ อบผ้า"
+            )
+
+        if machine_size not in SERVICE_DB[service_name]:
+            available = ", ".join(
+                SERVICE_DB[service_name].keys()
+            )
+
+            raise ValueError(
+                f"ไม่มีเครื่อง {machine_size} "
+                f"สำหรับ {service_name}. "
+                f"ขนาดที่มี: {available}"
+            )
+
+        service_info = SERVICE_DB[service_name][machine_size]
+
+        return (
+            f"{service_name} เครื่อง {machine_size}: "
+            f"ราคา {service_info['price']} บาทต่อรอบ, "
+            f"ใช้เวลา {service_info['duration']}"
+        )
 
     else:
-        raise ValueError(f"Unknown tool: {tool_name}")
+        raise ValueError(
+            f"Unknown tool: {tool_name}"
+        )
 
 
 def main() -> int:
     load_dotenv()
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--cmd", required=True, help="คำสั่งภาษาไทย")
+
+    parser = argparse.ArgumentParser(
+        description="WashLab Agent Harness"
+    )
+
+    parser.add_argument(
+        "--cmd",
+        required=True,
+        help="คำสั่งภาษาไทยเกี่ยวกับบริการ WashLab"
+    )
+
     args = parser.parse_args()
 
     log_trace("user_input", args.cmd)
 
     try:
         tool_call = parse_command(args.cmd)
-        log_trace("llm_response", json.dumps(tool_call, ensure_ascii=False))
+
+        log_trace(
+            "llm_response",
+            json.dumps(tool_call, ensure_ascii=False)
+        )
 
         result = dispatch_tool(tool_call)
-        log_trace("tool_result", result)
+
+        log_trace(
+            "tool_result",
+            result
+        )
+
+        print(f"\n{result}")
 
     except Exception as e:
-        log_trace("tool_error", f"{type(e).__name__} {str(e)}")
+        log_trace(
+            "tool_error",
+            f"{type(e).__name__} {str(e)}"
+        )
+
         return 1
 
     return 0
