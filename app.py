@@ -1,18 +1,17 @@
-"""WashLab RAG Chatbot (S4 Pivot - Gradio).
-
-Deploys to Hugging Face Spaces using Gradio.
-"""
+"""WashLab RAG Chatbot (S4 Pivot - Gradio + ZeroGPU)."""
 
 import os
 from functools import lru_cache
 
 import gradio as gr
+import spaces
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 
 
+# ตั้งค่า Gemini API
 if "GOOGLE_API_KEY" in os.environ:
     genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 
@@ -113,8 +112,9 @@ def generate_answer(query, context_chunks):
         return f"เกิดข้อผิดพลาดในการเรียก Gemini API: {e}"
 
 
+@spaces.GPU(duration=30)
 def chat(message, history):
-    """Main Gradio chatbot function."""
+    """Main Gradio chatbot function for ZeroGPU Space."""
 
     if not message.strip():
         return "กรุณาพิมพ์คำถามครับ"
@@ -156,4 +156,5 @@ demo = gr.ChatInterface(
 
 
 if __name__ == "__main__":
+    demo.queue()
     demo.launch()
