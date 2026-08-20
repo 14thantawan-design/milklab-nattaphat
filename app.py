@@ -103,7 +103,7 @@ def generate_answer(query, context_chunks):
 """
 
     try:
-        llm = genai.GenerativeModel("gemini-2.5-flash")
+        llm = genai.GenerativeModel("gemini-3.6-flash")
         response = llm.generate_content(prompt)
 
         return response.text or "ขออภัยครับ ไม่สามารถสร้างคำตอบได้"
