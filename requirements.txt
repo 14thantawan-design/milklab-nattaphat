@@ -1,26 +1,21 @@
-# S1
+# WashLab - S4 Pivot
+
+# Gemini
 google-genai>=0.4.0
+google-generativeai
 python-dotenv>=1.0.0
 
-# S2
-gspread>=6.0.0
-google-auth>=2.30.0
-requests>=2.31.0
-
-# S3
-streamlit>=1.35.0
+# RAG + Hugging Face Space
+gradio
 sentence-transformers>=3.0.0
 faiss-cpu>=1.8.0
+numpy
+
+# Google Sheets + Telegram
+google-auth>=2.30.0
+google-api-python-client
+gspread>=6.0.0
+requests>=2.31.0
 
 # Dev tools
 pytest>=8.0.0
-
-google-api-python-client
-google-auth
-requests
-
-
-streamlit
-google-generativeai
-python-dotenv
-gspread
