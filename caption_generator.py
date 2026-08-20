@@ -1,9 +1,10 @@
-"""MilkLab Caption Generator (S1).
+"""WashLab Caption Generator (S4 Pivot).
 
 Usage:
-    python caption_generator.py --menu "ชื่อเมนู" --n 1
+    python caption_generator.py --service "ชื่อบริการ" --n 1
 
-Reads GOOGLE_API_KEY from env. Generates a Thai caption for a milk menu item.
+Reads GOOGLE_API_KEY from env.
+Generates a Thai promotional caption for a WashLab laundry service.
 """
 
 import os
@@ -13,58 +14,112 @@ import argparse
 from dotenv import load_dotenv
 from google import genai
 
-MENU_DB = {
-    "นมสดโอริโอ้ปั่น": {"price": 55, "ingredients": "นมสดแท้ 100%, คุกกี้โอริโอ้บดกรุบกรอบ"},
-    "นมหมีฮอกไกโด": {"price": 65, "ingredients": "นมหมีกระป๋องแท้, หัวนมฮอกไกโดเข้มข้น"},
-    "ปังปิ้งเนยนม": {"price": 30, "ingredients": "ขนมปังหนานุ่ม, เนยสดแท้, นมข้นหวานฉ่ำๆ"},
-    "default": {"price": "-", "ingredients": "สูตรลับเฉพาะของ MilkLab"}
+
+SERVICE_DB = {
+    "ซักผ้า 10 kg": {
+        "price": 40,
+        "duration": "ประมาณ 30 นาที",
+        "note": "เหมาะสำหรับผ้าปริมาณน้อย"
+    },
+    "ซักผ้า 15 kg": {
+        "price": 50,
+        "duration": "ประมาณ 35 นาที",
+        "note": "เหมาะสำหรับผ้าปริมาณปานกลาง"
+    },
+    "ซักผ้า 20 kg": {
+        "price": 60,
+        "duration": "ประมาณ 40 นาที",
+        "note": "เหมาะสำหรับผ้าปริมาณมากหรือผ้านวม"
+    },
+    "อบผ้า 10 kg": {
+        "price": 40,
+        "duration": "ประมาณ 30 นาที",
+        "note": "เหมาะสำหรับผ้าปริมาณน้อย"
+    },
+    "อบผ้า 15 kg": {
+        "price": 50,
+        "duration": "ประมาณ 35 นาที",
+        "note": "เหมาะสำหรับผ้าปริมาณปานกลาง"
+    },
+    "น้ำยาซักผ้า": {
+        "price": 10,
+        "duration": "-",
+        "note": "จำหน่ายเป็นซอง ลูกค้าสามารถนำมาเองได้เช่นกัน"
+    },
+    "default": {
+        "price": "-",
+        "duration": "-",
+        "note": "บริการซักอบผ้าแบบ Self-Service ของ WashLab"
+    }
 }
 
 
 PROMPT_TEMPLATE = """\
-คุณคือ social media manager ของร้าน MilkLab° ร้านนมสดกลางคืน
+คุณคือ social media manager ของ WashLab ร้านซักอบผ้าแบบ Self-Service
 
-จงเขียนแคปชั่นภาษาไทยเพื่อโปรโมตเมนู: {menu}
+จงเขียนแคปชั่นภาษาไทยเพื่อโปรโมตบริการ: {service}
 รายละเอียด: {details}
 
-เขียน 3 รูปแบบ (Cute, Minimal, Gen-Z) 
+เขียน 3 รูปแบบ (Friendly, Minimal, Gen-Z)
+
 เงื่อนไขสำคัญ:
 - มี call-to-action
 - ห้ามใช้ em dash
-- นำรายละเอียดเมนูไปแต่งด้วย
-- บังคับ: เขียนให้สั้นที่สุด รวมทั้ง 3 รูปแบบต้องมีความยาวไม่เกิน 280 ตัวอักษร!
+- ใช้เฉพาะข้อมูลบริการที่ให้มา
+- ห้ามแต่งราคา ระยะเวลา หรือบริการเพิ่มเติมเอง
+- เขียนให้สั้นและอ่านง่าย
+- รวมทั้ง 3 รูปแบบต้องมีความยาวไม่เกิน 280 ตัวอักษร
 """
 
 
-def generate_caption(menu: str, api_key: str | None = None) -> str:
-    """Generate a Thai caption for the given milk menu item with length validation."""
+def generate_caption(service: str, api_key: str | None = None) -> str:
+    """Generate a Thai caption for a WashLab laundry service."""
     key = api_key or os.environ.get("GOOGLE_API_KEY")
+
     if not key:
         raise RuntimeError("GOOGLE_API_KEY not set in env or argument")
+
     client = genai.Client(api_key=key)
 
-    menu_info = MENU_DB.get(menu, MENU_DB["default"])
-    details_text = f"ราคา {menu_info['price']}บ., ส่วนผสม: {menu_info['ingredients']}"
+    service_info = SERVICE_DB.get(service, SERVICE_DB["default"])
+
+    details_text = (
+        f"ราคา {service_info['price']} บาท, "
+        f"ระยะเวลา {service_info['duration']}, "
+        f"หมายเหตุ: {service_info['note']}"
+    )
 
     max_retries = 3
+
     for attempt in range(max_retries):
         response = client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=PROMPT_TEMPLATE.format(menu=menu, details=details_text),
+            contents=PROMPT_TEMPLATE.format(
+                service=service,
+                details=details_text
+            ),
         )
+
         caption = response.text or ""
 
-        # ตรวจสอบความยาวไม่เกิน 280 ตัวอักษร
         if len(caption) <= 280:
             print(
-                f"  [System] สร้างสำเร็จในรอบที่ {attempt + 1} (ความยาว {len(caption)} ตัวอักษร)")
+                f"  [System] สร้างสำเร็จในรอบที่ {attempt + 1} "
+                f"(ความยาว {len(caption)} ตัวอักษร)"
+            )
             return caption
-        else:
-            print(
-                f"  [System] รอบที่ {attempt + 1} ล้มเหลว: แคปชันยาวเกินไป ({len(caption)}/280 ตัวอักษร) กำลังสร้างใหม่...")
 
-    # ถ้าพยายามครบ 3 รอบแล้วยังยาวเกิน ให้คืนค่ารอบสุดท้ายไปเลยพร้อมคำเตือน
-    print("  [System] คำเตือน: สร้างครบ 3 รอบแล้วแต่ความยาวยังเกิน 280 ตัวอักษร")
+        print(
+            f"  [System] รอบที่ {attempt + 1} ล้มเหลว: "
+            f"แคปชันยาวเกินไป ({len(caption)}/280 ตัวอักษร) "
+            "กำลังสร้างใหม่..."
+        )
+
+    print(
+        "  [System] คำเตือน: สร้างครบ 3 รอบแล้ว "
+        "แต่ความยาวยังเกิน 280 ตัวอักษร"
+    )
+
     return caption
 
 
@@ -72,21 +127,39 @@ def main() -> int:
     load_dotenv()
 
     parser = argparse.ArgumentParser(
-        description="Generate captions for MilkLab.")
-    parser.add_argument("--menu", type=str, help="ชื่อเมนูที่ต้องการโปรโมต")
-    parser.add_argument("--n", type=int, default=1,
-                        help="จำนวนเซ็ตแคปชันที่ต้องการสร้าง (default: 1)")
+        description="Generate captions for WashLab."
+    )
+
+    parser.add_argument(
+        "--service",
+        type=str,
+        help="ชื่อบริการที่ต้องการโปรโมต"
+    )
+
+    parser.add_argument(
+        "--n",
+        type=int,
+        default=1,
+        help="จำนวนเซ็ตแคปชันที่ต้องการสร้าง (default: 1)"
+    )
+
     args = parser.parse_args()
 
-    if not args.menu:
-        print("กรุณาใส่ชื่อเมนู โดยใช้ flag --menu (เช่น python caption_generator.py --menu นมสด)")
+    if not args.service:
+        print(
+            'กรุณาใส่ชื่อบริการ โดยใช้ flag --service '
+            '(เช่น python caption_generator.py --service "ซักผ้า 10 kg")'
+        )
         return 1
 
-    print(f"กำลังสร้างแคปชันสำหรับเมนู: '{args.menu}' จำนวน {args.n} ชุด...\n")
+    print(
+        f"กำลังสร้างแคปชันสำหรับบริการ: "
+        f"'{args.service}' จำนวน {args.n} ชุด...\n"
+    )
 
     for i in range(args.n):
         print(f"=== ผลลัพธ์ชุดที่ {i + 1} ===")
-        caption = generate_caption(args.menu)
+        caption = generate_caption(args.service)
         print(f"\n{caption}\n")
 
     return 0
@@ -94,5 +167,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
-# Lab 1.3
