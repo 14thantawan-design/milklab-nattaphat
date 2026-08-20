@@ -1,13 +1,12 @@
 ---
-
 title: WashLab RAG
 emoji: 🧺
 colorFrom: blue
 colorTo: green
-sdk: streamlit
+sdk: gradio
 app_file: app.py
 pinned: false
--------------
+---
 
 # WashLab° Solopreneur Pivot (Session 4)
 
