@@ -1,109 +1,166 @@
-"""MilkLab RAG Chatbot (S3).
+"""WashLab RAG Chatbot (S4 Pivot).
 
 Run locally: streamlit run app.py
-Deploy: push to GitHub then Actions deploys to HuggingFace Space
+Deploy: push to GitHub then Actions deploys to HuggingFace Space.
 
-นักศึกษาต้องเติม TODO 5 จุด ใน Session 3 Lab 2.2
+This version pivots the original MilkLab RAG chatbot
+to WashLab, a self-service laundry domain.
 """
 
 import os
+
 import streamlit as st
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 
-# ตั้งค่าโมเดล Gemini API ไว้ล่วงหน้า
+
+# ตั้งค่า Gemini API
 if "GOOGLE_API_KEY" in os.environ:
     genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 
 
 @st.cache_resource
 def load_index():
-    """TODO 1+2+3: โหลด menu_kb.md, split เป็น chunk, encode ด้วย sentence-transformers,
-    สร้าง faiss index. Cache เพราะโหลด model ครั้งแรกใช้เวลา 30 วินาที
+    """Load WashLab KB, split into chunks, create embeddings and FAISS index."""
 
-    Returns: (model, index, chunks_list)
-    """
-    # 1. โหลดไฟล์ menu_kb.md
-    kb_path = "menu_kb.md"
+    # Knowledge Base ใหม่ของ WashLab
+    kb_path = "washlab_kb.md"
+
     if not os.path.exists(kb_path):
-        raise FileNotFoundError(f"ไม่พบไฟล์ {kb_path} กรุณาตรวจสอบตำแหน่งไฟล์")
-        
+        raise FileNotFoundError(
+            f"ไม่พบไฟล์ {kb_path} กรุณาตรวจสอบตำแหน่งไฟล์"
+        )
+
     with open(kb_path, "r", encoding="utf-8") as f:
         text = f.read()
 
-    # 2. Split เป็น chunk (ใช้การแบ่งด้วยการขึ้นบรรทัดใหม่สองครั้ง \n\n สำหรับโครงสร้าง Markdown)
-    chunks_list = [chunk.strip() for chunk in text.split("\n\n") if chunk.strip()]
+    # แบ่ง Markdown เป็น chunks ตามย่อหน้า
+    chunks_list = [
+        chunk.strip()
+        for chunk in text.split("\n\n")
+        if chunk.strip()
+    ]
 
-    # 3. โหลดโมเดลสำหรับทำ Vector Embedding ภาษาไทยตามโจทย์กำหนด
-    model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
-    
-    # แปลง Chunks เป็น Vectors
+    if not chunks_list:
+        raise ValueError("Knowledge Base ไม่มีข้อมูล")
+
+    # Embedding model รองรับหลายภาษา รวมถึงภาษาไทย
+    model = SentenceTransformer(
+        "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    )
+
     embeddings = model.encode(chunks_list)
 
-    # 4. สร้าง FAISS Index เพื่อทำ Similarity Search
+    # สร้าง FAISS index
     dimension = embeddings.shape[1]
     index = faiss.IndexFlatL2(dimension)
-    index.add(np.array(embeddings).astype('float32'))
+    index.add(
+        np.array(embeddings).astype("float32")
+    )
 
     return model, index, chunks_list
 
 
-def retrieve_top_k(query: str, model, index, chunks: list[str], k: int = 3) -> list[str]:
-    """TODO 4: encode query, search index, return top-k chunks"""
-    # แปลงคำถามของ User ให้เป็น Vector
+def retrieve_top_k(
+    query: str,
+    model,
+    index,
+    chunks: list[str],
+    k: int = 3
+) -> list[str]:
+    """Retrieve the most relevant WashLab knowledge chunks."""
+
     query_vector = model.encode([query])
-    
-    # ค้นหาข้อความที่ใกล้เคียงที่สุดจำนวน k อันดับจาก FAISS Index
-    distances, indices = index.search(np.array(query_vector).astype('float32'), k)
-    
-    # ดึงข้อความตาม Index ที่ค้นเจอ
-    top_k_chunks = [chunks[i] for i in indices[0] if i < len(chunks)]
+
+    # ป้องกันกรณีจำนวน chunks น้อยกว่า k
+    actual_k = min(k, len(chunks))
+
+    distances, indices = index.search(
+        np.array(query_vector).astype("float32"),
+        actual_k
+    )
+
+    top_k_chunks = [
+        chunks[i]
+        for i in indices[0]
+        if 0 <= i < len(chunks)
+    ]
+
     return top_k_chunks
 
 
-def generate_answer(query: str, context_chunks: list[str]) -> str:
-    """TODO 5: ส่ง query + context ไป Gemini, return answer
+def generate_answer(
+    query: str,
+    context_chunks: list[str]
+) -> str:
+    """Generate an answer using only retrieved WashLab information."""
 
-    Hint: build prompt that says "ตอบจากข้อมูลต่อไปนี้เท่านั้น ถ้าไม่มีใน context ให้บอกว่าไม่รู้"
-    """
-    # รวมเนื้อหาจาก Chunks ที่ดึงมาได้เข้าด้วยกันเพื่อส่งเป็น Context
     context = "\n\n".join(context_chunks)
-    
-    # ออกแบบ Prompt คุมบอทป้องกันอาการเดาข้อมูล (Hallucination)
-    prompt = f"""คุณคือพนักงานบริการลูกค้าของร้าน MilkLab° จงตอบคำถามลูกค้าโดยอ้างอิงจากข้อมูลใน [บริบทข้อมูลร้าน] ด้านล่างนี้เท่านั้น
-หากไม่พบคำตอบในบริบทข้อมูล หรือไม่มีข้อมูลในระบบ ให้ตอบสั้นๆ อย่างสุภาพว่า "ขออภัยครับ ทางร้านไม่มีข้อมูลในส่วนนี้" หรือ "ไม่ทราบครับ" ห้ามพยายามเดา นึกคิด หรือจินตนาการคำตอบนอกเหนือจากบริบทที่ให้ไว้เด็ดขาด
 
-[บริบทข้อมูลร้าน]:
+    prompt = f"""
+คุณคือผู้ช่วยบริการลูกค้าของ WashLab
+ร้านซักอบผ้าแบบ Self-Service
+
+ตอบคำถามลูกค้าโดยใช้เฉพาะข้อมูลจาก
+[ข้อมูลของ WashLab] ด้านล่างนี้เท่านั้น
+
+กฎสำคัญ:
+- ห้ามแต่งราคา เวลาเปิดร้าน ขนาดเครื่อง หรือบริการขึ้นเอง
+- หากข้อมูลที่ถามไม่มีอยู่ในบริบท ให้ตอบว่า
+  "ขออภัยครับ ทางร้านไม่มีข้อมูลในส่วนนี้"
+- ตอบเป็นภาษาไทย กระชับ สุภาพ และเข้าใจง่าย
+- หากลูกค้าถามเรื่องการเลือกเครื่อง ให้แนะนำตามข้อมูลที่มีเท่านั้น
+
+[ข้อมูลของ WashLab]
 {context}
 
-คำถามจากลูกค้า: {query}
-คำตอบ:"""
+คำถามจากลูกค้า:
+{query}
+
+คำตอบ:
+"""
 
     try:
-        # ใช้โมเดล gemini-2.5-flash ในการประมวลผลคำตอบ
-        llm_model = genai.GenerativeModel('gemini-3.5-flash')
+        llm_model = genai.GenerativeModel(
+            "gemini-2.5-flash"
+        )
+
         response = llm_model.generate_content(prompt)
-        return response.text
+
+        return response.text or "ขออภัยครับ ไม่สามารถสร้างคำตอบได้"
+
     except Exception as e:
-        return f"เกิดข้อผิดพลาดในการเรียกใช้ Gemini API: {str(e)}"
+        return (
+            "เกิดข้อผิดพลาดในการเรียกใช้ Gemini API: "
+            f"{str(e)}"
+        )
 
 
 def main():
-    st.set_page_config(page_title="MilkLab° RAG", page_icon="🥛")
-    st.title("MilkLab° RAG Chatbot")
-    st.caption("ถามอะไรเกี่ยวกับ MilkLab ได้ ตอบจาก menu_kb.md")
+    st.set_page_config(
+        page_title="WashLab RAG",
+        page_icon="🧺"
+    )
+
+    st.title("🧺 WashLab RAG Chatbot")
+
+    st.caption(
+        "ผู้ช่วยตอบคำถามเกี่ยวกับบริการซักอบผ้า "
+        "โดยอ้างอิงข้อมูลจาก washlab_kb.md"
+    )
 
     try:
         model, index, chunks = load_index()
-    except NotImplementedError as exc:
-        st.error(f"TODO not implemented: {exc}")
-        st.stop()
+
     except Exception as exc:
-        st.error(f"Error loading system: {exc}")
+        st.error(
+            f"Error loading system: {exc}"
+        )
         st.stop()
 
+    # เก็บประวัติการสนทนา
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -111,20 +168,55 @@ def main():
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
 
-    if prompt := st.chat_input("ถามอะไรเกี่ยวกับ MilkLab"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
+    if prompt := st.chat_input(
+        "เช่น ซักผ้านวมควรใช้เครื่องขนาดไหน?"
+    ):
+        st.session_state.messages.append(
+            {
+                "role": "user",
+                "content": prompt
+            }
+        )
+
         with st.chat_message("user"):
             st.write(prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("กำลังค้นข้อมูล..."):
-                context = retrieve_top_k(prompt, model, index, chunks)
-                answer = generate_answer(prompt, context)
+            with st.spinner(
+                "กำลังค้นข้อมูลของ WashLab..."
+            ):
+                context = retrieve_top_k(
+                    prompt,
+                    model,
+                    index,
+                    chunks
+                )
+
+                answer = generate_answer(
+                    prompt,
+                    context
+                )
+
             st.write(answer)
-            with st.expander("Source chunks"):
-                for i, c in enumerate(context, 1):
-                    st.markdown(f"**[{i}]** {c}")
-        st.session_state.messages.append({"role": "assistant", "content": answer})
+
+            # แสดงว่า RAG ดึงข้อมูลส่วนไหนมาใช้
+            with st.expander(
+                "ดูข้อมูลอ้างอิงจาก Knowledge Base"
+            ):
+                for i, chunk in enumerate(
+                    context,
+                    1
+                ):
+                    st.markdown(
+                        f"**[{i}]** {chunk}"
+                    )
+
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "content": answer
+            }
+        )
 
 
 if __name__ == "__main__":
